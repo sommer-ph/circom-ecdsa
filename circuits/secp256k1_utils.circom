@@ -5,7 +5,7 @@ include "bigint_func.circom";
 // 10 registers, 64 bits. registers can be overful
 // adds 43 bits to overflow, so don't input overful registers which are > 208 bits
 // input registers can also be negative; the overall input can be negative as well
-template Secp256k1PrimeReduce10Registers() {
+template K1_Secp256k1PrimeReduce10Registers() {
     signal input in[10];
 
     signal output out[4];
@@ -21,7 +21,7 @@ template Secp256k1PrimeReduce10Registers() {
 // 7 registers, 64 bits. registers can be overful
 // adds 33 bits to overflow, so don't input overful registers which are > 218 bits
 // input registers can also be negative; the overall input can be negative as well
-template Secp256k1PrimeReduce7Registers() {
+template K1_Secp256k1PrimeReduce7Registers() {
     signal input in[7];
 
     signal output out[4];
@@ -33,7 +33,7 @@ template Secp256k1PrimeReduce7Registers() {
     out[0] <== (offset * in[4]) + in[0];
 }
 
-template CheckInRangeSecp256k1 () {
+template K1_CheckInRangeSecp256k1 () {
     signal input in[4];
     component range64[4];
     for(var i = 0; i < 4; i++){
@@ -60,7 +60,7 @@ template CheckInRangeSecp256k1 () {
 
 // 64 bit registers with m-bit overflow
 // registers (and overall number) are potentially negative
-template CheckCubicModPIsZero(m) {
+template K1_CheckCubicModPIsZero(m) {
     assert(m < 206); // since we deal with up to m+46 bit, potentially negative registers
 
     signal input in[10];
@@ -82,7 +82,7 @@ template CheckCubicModPIsZero(m) {
     // since the registers of z are m + 43 bits, its max abs value is 2^(m+43 + 192) + 2^(m+43 + 128) + ...
     // so we add p * 2^(m-20), which is a bit under 2^(m+236) and larger than |z| < 2^(m+43+192) + eps
     signal reduced[4];
-    component secpReducer = Secp256k1PrimeReduce10Registers();
+    component secpReducer = K1_Secp256k1PrimeReduce10Registers();
     for (var i = 0; i < 10; i++) {
         secpReducer.in[i] <== in[i];
     }
@@ -99,13 +99,13 @@ template CheckCubicModPIsZero(m) {
     // so long as m < 211
     signal q[3];
 
-    var temp[100] = getProperRepresentation(m + 45, 64, 4, reduced);
+    var temp[100] = K1_getProperRepresentation(m + 45, 64, 4, reduced);
     var proper[8];
     for (var i = 0; i < 8; i++) {
         proper[i] = temp[i];
     }
 
-    var qVarTemp[2][100] = long_div(64, 4, 4, proper, p);
+    var qVarTemp[2][100] = K1_long_div(64, 4, 4, proper, p);
     for (var i = 0; i < 3; i++) {
         q[i] <-- qVarTemp[0][i];
     }
@@ -119,7 +119,7 @@ template CheckCubicModPIsZero(m) {
 
     // now we compute a representation qpProd = q * p
     signal qpProd[6];
-    component qpProdComp = BigMultNoCarry(64, 64, 64, 3, 4);
+    component qpProdComp = K1_BigMultNoCarry(64, 64, 64, 3, 4);
     for (var i = 0; i < 3; i++) {
         qpProdComp.a[i] <== q[i];
     }
@@ -131,7 +131,7 @@ template CheckCubicModPIsZero(m) {
     }
 
     // finally, check that qpProd == reduced
-    component zeroCheck = CheckCarryToZero(64, m + 46, 6);
+    component zeroCheck = K1_CheckCarryToZero(64, m + 46, 6);
     for (var i = 0; i < 6; i++) {
         if (i < 4) { // reduced only has 4 registers
             zeroCheck.in[i] <== qpProd[i] - reduced[i]; // (m + 45) + 1 bits
@@ -143,7 +143,7 @@ template CheckCubicModPIsZero(m) {
 
 // 64 bit registers with m-bit overflow
 // registers (and overall number) are potentially negative
-template CheckQuadraticModPIsZero(m) {
+template K1_CheckQuadraticModPIsZero(m) {
     assert(m < 147); // so that we can assume q has 2 registers
 
     signal input in[7];
@@ -165,7 +165,7 @@ template CheckQuadraticModPIsZero(m) {
     // since the registers of z are m + 33 bits, its max abs value is 2^(m+33 + 192) + 2^(m+33 + 128) + ...
     // so we add p * 2^(m-30), which is a bit under 2^(m+226) and larger than |z| < 2^(m+33+192) + eps
     signal reduced[4];
-    component secpReducer = Secp256k1PrimeReduce7Registers();
+    component secpReducer = K1_Secp256k1PrimeReduce7Registers();
     for (var i = 0; i < 7; i++) {
         secpReducer.in[i] <== in[i];
     }
@@ -182,13 +182,13 @@ template CheckQuadraticModPIsZero(m) {
     // so long as m < 147
     signal q[2];
 
-    var temp[100] = getProperRepresentation(m + 35, 64, 4, reduced);
+    var temp[100] = K1_getProperRepresentation(m + 35, 64, 4, reduced);
     var proper[8];
     for (var i = 0; i < 8; i++) {
         proper[i] = temp[i];
     }
 
-    var qVarTemp[2][100] = long_div(64, 4, 4, proper, p);
+    var qVarTemp[2][100] = K1_long_div(64, 4, 4, proper, p);
     for (var i = 0; i < 2; i++) {
         q[i] <-- qVarTemp[0][i];
     }
@@ -202,7 +202,7 @@ template CheckQuadraticModPIsZero(m) {
 
     // now we compute a representation qpProd = q * p
     signal qpProd[5];
-    component qpProdComp = BigMultNoCarry(64, 64, 64, 2, 4);
+    component qpProdComp = K1_BigMultNoCarry(64, 64, 64, 2, 4);
     for (var i = 0; i < 2; i++) {
         qpProdComp.a[i] <== q[i];
     }
@@ -214,7 +214,7 @@ template CheckQuadraticModPIsZero(m) {
     }
 
     // finally, check that qpProd == reduced
-    component zeroCheck = CheckCarryToZero(64, m + 36, 5);
+    component zeroCheck = K1_CheckCarryToZero(64, m + 36, 5);
     for (var i = 0; i < 5; i++) {
         if (i < 4) { // reduced only has 4 registers
             zeroCheck.in[i] <== qpProd[i] - reduced[i]; // (m + 35) + 1 bits

@@ -2,12 +2,12 @@ pragma circom 2.0.2;
 
 include "bigint.circom";
 
-template A2NoCarry() {
+template K1_A2NoCarry() {
     signal input a[4];
 
     // these representations have overflowed, nonnegative registers
     signal output a2[7];
-    component a2Comp = BigMultNoCarry(64, 64, 64, 4, 4);
+    component a2Comp = K1_BigMultNoCarry(64, 64, 64, 4, 4);
     for (var i = 0; i < 4; i++) {
         a2Comp.a[i] <== a[i];
         a2Comp.b[i] <== a[i];
@@ -17,12 +17,12 @@ template A2NoCarry() {
     }
 }
 
-template A3NoCarry() {
+template K1_A3NoCarry() {
     signal input a[4];
 
     // these representations have overflowed, nonnegative registers
     signal a2[7];
-    component a2Comp = BigMultNoCarry(64, 64, 64, 4, 4);
+    component a2Comp = K1_BigMultNoCarry(64, 64, 64, 4, 4);
     for (var i = 0; i < 4; i++) {
         a2Comp.a[i] <== a[i];
         a2Comp.b[i] <== a[i];
@@ -31,7 +31,7 @@ template A3NoCarry() {
         a2[i] <== a2Comp.out[i]; // 130 bits
     }
     signal output a3[10];
-    component a3Comp = BigMultNoCarry(64, 130, 64, 7, 4);
+    component a3Comp = K1_BigMultNoCarry(64, 130, 64, 7, 4);
     for (var i = 0; i < 7; i++) {
         a3Comp.a[i] <== a2[i];
     }
@@ -43,13 +43,13 @@ template A3NoCarry() {
     }
 }
 
-template A2B1NoCarry() {
+template K1_A2B1NoCarry() {
     signal input a[4];
     signal input b[4];
 
     // these representations have overflowed, nonnegative registers
     signal a2[7];
-    component a2Comp = BigMultNoCarry(64, 64, 64, 4, 4);
+    component a2Comp = K1_BigMultNoCarry(64, 64, 64, 4, 4);
     for (var i = 0; i < 4; i++) {
         a2Comp.a[i] <== a[i];
         a2Comp.b[i] <== a[i];
@@ -59,7 +59,7 @@ template A2B1NoCarry() {
     }
 
     signal output a2b1[10];
-    component a2b1Comp = BigMultNoCarry(64, 130, 64, 7, 4);
+    component a2b1Comp = K1_BigMultNoCarry(64, 130, 64, 7, 4);
     for (var i = 0; i < 7; i++) {
         a2b1Comp.a[i] <== a2[i];
     }
@@ -71,14 +71,14 @@ template A2B1NoCarry() {
     }
 }
 
-template A1B1C1NoCarry() {
+template K1_A1B1C1NoCarry() {
     signal input a[4];
     signal input b[4];
     signal input c[4];
 
     // these representations have overflowed, nonnegative registers
     signal a1b1[7];
-    component a1b1Comp = BigMultNoCarry(64, 64, 64, 4, 4);
+    component a1b1Comp = K1_BigMultNoCarry(64, 64, 64, 4, 4);
     for (var i = 0; i < 4; i++) {
         a1b1Comp.a[i] <== a[i];
         a1b1Comp.b[i] <== b[i];
@@ -88,7 +88,7 @@ template A1B1C1NoCarry() {
     }
 
     signal output a1b1c1[10];
-    component a1b1c1Comp = BigMultNoCarry(64, 130, 64, 7, 4);
+    component a1b1c1Comp = K1_BigMultNoCarry(64, 130, 64, 7, 4);
     for (var i = 0; i < 7; i++) {
         a1b1c1Comp.a[i] <== a1b1[i];
     }

@@ -9,7 +9,7 @@ include "../../node_modules/circomlib/circuits/bitify.circom";
  * representing the entire pubkey
  *
  */
-template FlattenPubkey(numBits, k) {
+template K1_FlattenPubkey(numBits, k) {
   signal input chunkedPubkey[2][k];
 
   signal output pubkeyBits[512];
@@ -54,7 +54,7 @@ template FlattenPubkey(numBits, k) {
  *
  * NOTE: uses https://github.com/vocdoni/keccak256-circom, a highly experimental keccak256 implementation
  */
-template PubkeyToAddress() {
+template K1_PubkeyToAddress() {
     // public key is (x, y) curve point. this is a 512-bit little-endian bitstring representation of y + 2**256 * x
     signal input pubkeyBits[512];
 
@@ -69,7 +69,7 @@ template PubkeyToAddress() {
       reverse[i] <== pubkeyBits[511-i];
     }
 
-    component keccak = Keccak(512, 256);
+    component keccak = K1_Keccak(512, 256);
     for (var i = 0; i < 512 / 8; i += 1) {
       for (var j = 0; j < 8; j++) {
         keccak.in[8*i + j] <== reverse[8*i + (7-j)];

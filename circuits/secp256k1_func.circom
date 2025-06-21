@@ -1,7 +1,7 @@
 pragma circom 2.0.2;
 
 // from https://github.com/ethereum/py_ecc/blob/master/py_ecc/secp256k1/secp256k1.py
-function get_gx(n, k) {
+function K1_get_gx(n, k) {
     assert(n == 86 && k == 3);
     var ret[100];
     if (n == 86 && k == 3) {
@@ -12,7 +12,7 @@ function get_gx(n, k) {
     return ret;
 }
 
-function get_gy(n, k) {
+function K1_get_gy(n, k) {
     assert(n == 86 && k == 3);
     var ret[100];
     if (n == 86 && k == 3) {
@@ -23,7 +23,7 @@ function get_gy(n, k) {
     return ret;
 }
 
-function get_secp256k1_prime(n, k) {
+function K1_get_secp256k1_prime(n, k) {
      assert((n == 86 && k == 3) || (n == 64 && k == 4));
      var ret[100];
      if (n == 86 && k == 3) {
@@ -40,7 +40,7 @@ function get_secp256k1_prime(n, k) {
      return ret;
 }
 
-function get_secp256k1_order(n, k) {
+function K1_get_secp256k1_order(n, k) {
     assert((n == 86 && k == 3) || (n == 64 && k == 4));
     var ret[100];
     if (n == 86 && k == 3) {
@@ -59,7 +59,7 @@ function get_secp256k1_order(n, k) {
 
 // returns G * 2 ** 255
 // TODO check that this is correct...
-function get_dummy_point(n, k) {
+function K1_get_dummy_point(n, k) {
     assert(n == 86 && k == 3 || n == 64 && k == 4);
     var ret[2][100]; // should be [2][k]
     if (k == 3) {
@@ -87,7 +87,7 @@ function get_dummy_point(n, k) {
 // lamb = (b[1] - a[1]) / (b[0] - a[0]) % p
 // out[0] = lamb ** 2 - a[0] - b[0] % p
 // out[1] = lamb * (a[0] - out[0]) - a[1] % p
-function secp256k1_addunequal_func(n, k, x1, y1, x2, y2){
+function K1_secp256k1_addunequal_func(n, k, x1, y1, x2, y2){
     var a[2][100];
     var b[2][100];
 
@@ -100,30 +100,30 @@ function secp256k1_addunequal_func(n, k, x1, y1, x2, y2){
 
     var out[2][100];
 
-    var p[100] = get_secp256k1_prime(n, k);
+    var p[100] = K1_get_secp256k1_prime(n, k);
 
     // b[1] - a[1]
-    var sub1_out[100] = long_sub_mod_p(n, k, b[1], a[1], p);
+    var sub1_out[100] = K1_long_sub_mod_p(n, k, b[1], a[1], p);
 
     // b[0] - a[0]
-    var sub0_out[100]= long_sub_mod_p(n, k, b[0], a[0], p);
+    var sub0_out[100]= K1_long_sub_mod_p(n, k, b[0], a[0], p);
 
     // lambda = (b[1] - a[1]) * inv(b[0] - a[0])
-    var sub0inv[100] = mod_inv(n, k, sub0_out, p);
-    var lambda[100] = prod_mod_p(n, k, sub1_out, sub0inv, p);
+    var sub0inv[100] = K1_mod_inv(n, k, sub0_out, p);
+    var lambda[100] = K1_prod_mod_p(n, k, sub1_out, sub0inv, p);
 
     // out[0] = lambda ** 2 - a[0] - b[0]
-    var lambdasq_out[100] = prod_mod_p(n, k, lambda, lambda, p);
-    var out0_pre_out[100] = long_sub_mod_p(n, k, lambdasq_out, a[0], p);
-    var out0_out[100] = long_sub_mod_p(n, k, out0_pre_out, b[0], p);
+    var lambdasq_out[100] = K1_prod_mod_p(n, k, lambda, lambda, p);
+    var out0_pre_out[100] = K1_long_sub_mod_p(n, k, lambdasq_out, a[0], p);
+    var out0_out[100] = K1_long_sub_mod_p(n, k, out0_pre_out, b[0], p);
     for (var i = 0; i < k; i++) {
         out[0][i] = out0_out[i];
     }
 
     // out[1] = lambda * (a[0] - out[0]) - a[1]
-    var out1_0_out[100] = long_sub_mod_p(n, k, a[0], out[0], p);
-    var out1_1_out[100] = prod_mod_p(n, k, lambda, out1_0_out, p);
-    var out1_out[100] = long_sub_mod_p(n, k, out1_1_out, a[1], p);
+    var out1_0_out[100] = K1_long_sub_mod_p(n, k, a[0], out[0], p);
+    var out1_1_out[100] = K1_prod_mod_p(n, k, lambda, out1_0_out, p);
+    var out1_out[100] = K1_long_sub_mod_p(n, k, out1_1_out, a[1], p);
     for (var i = 0; i < k; i++) {
         out[1][i] = out1_out[i];
     }
@@ -135,7 +135,7 @@ function secp256k1_addunequal_func(n, k, x1, y1, x2, y2){
 // lamb = (3 * a[0] ** 2) / (2 * a[1]) % p
 // out[0] = lamb ** 2 - (2 * a[0]) % p
 // out[1] = lamb * (a[0] - out[0]) - a[1] % p
-function secp256k1_double_func(n, k, x1, y1){
+function K1_secp256k1_double_func(n, k, x1, y1){
     var a[2][100];
     var b[2][100];
 
@@ -146,35 +146,35 @@ function secp256k1_double_func(n, k, x1, y1){
 
     var out[2][100];
 
-    var p[100] = get_secp256k1_prime(n, k);
+    var p[100] = K1_get_secp256k1_prime(n, k);
 
     // lamb_numer = 3 * a[0] ** 2
-    var x1_sq[100] = prod_mod_p(n, k, a[0], a[0], p);
+    var x1_sq[100] = K1_prod_mod_p(n, k, a[0], a[0], p);
     var three[100];
     for (var i = 0; i < 100; i++) three[i] = i == 0 ? 3 : 0;
-    var lamb_numer[100] = prod_mod_p(n, k, x1_sq, three, p);
+    var lamb_numer[100] = K1_prod_mod_p(n, k, x1_sq, three, p);
 
     // lamb_denom = 2 * a[1]
     var two[100];
     for (var i = 0; i < 100; i++) two[i] = i == 0 ? 2 : 0;
-    var lamb_denom[100] = prod_mod_p(n, k, a[1], two, p);
+    var lamb_denom[100] = K1_prod_mod_p(n, k, a[1], two, p);
 
     // lambda = lamb_numer * inv(lamb_denom)
-    var lamb_denom_inv[100] = mod_inv(n, k, lamb_denom, p);
-    var lambda[100] = prod_mod_p(n, k, lamb_numer, lamb_denom_inv, p);
+    var lamb_denom_inv[100] = K1_mod_inv(n, k, lamb_denom, p);
+    var lambda[100] = K1_prod_mod_p(n, k, lamb_numer, lamb_denom_inv, p);
 
     // out[0] = lambda ** 2 - 2 * a[0]
-    var lambdasq_out[100] = prod_mod_p(n, k, lambda, lambda, p);
-    var out0_pre_out[100] = long_sub_mod_p(n, k, lambdasq_out, a[0], p);
-    var out0_out[100] = long_sub_mod_p(n, k, out0_pre_out, a[0], p);
+    var lambdasq_out[100] = K1_prod_mod_p(n, k, lambda, lambda, p);
+    var out0_pre_out[100] = K1_long_sub_mod_p(n, k, lambdasq_out, a[0], p);
+    var out0_out[100] = K1_long_sub_mod_p(n, k, out0_pre_out, a[0], p);
     for (var i = 0; i < k; i++) {
         out[0][i] = out0_out[i];
     }
 
     // out[1] = lambda * (a[0] - out[0]) - a[1]
-    var out1_0_out[100] = long_sub_mod_p(n, k, a[0], out[0], p);
-    var out1_1_out[100] = prod_mod_p(n, k, lambda, out1_0_out, p);
-    var out1_out[100] = long_sub_mod_p(n, k, out1_1_out, a[1], p);
+    var out1_0_out[100] = K1_long_sub_mod_p(n, k, a[0], out[0], p);
+    var out1_1_out[100] = K1_prod_mod_p(n, k, lambda, out1_0_out, p);
+    var out1_out[100] = K1_long_sub_mod_p(n, k, out1_1_out, a[1], p);
     for (var i = 0; i < k; i++) {
         out[1][i] = out1_out[i];
     }

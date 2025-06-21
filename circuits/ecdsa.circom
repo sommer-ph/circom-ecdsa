@@ -11,7 +11,7 @@ include "secp256k1_func.circom";
 
 // keys are encoded as (x, y) pairs with each coordinate being
 // encoded with k registers of n bits each
-template ECDSAPrivToPub(n, k) {
+template K1_ECDSAPrivToPub(n, k) {
     var stride = 8;
     signal input privkey[k];
     signal output pubkey[2][k];
@@ -22,15 +22,15 @@ template ECDSAPrivToPub(n, k) {
         n2b[i].in <== privkey[i];
     }
 
-    var num_strides = div_ceil(n * k, stride);
+    var num_strides = K1_div_ceil(n * k, stride);
     // power[i][j] contains: [j * (1 << stride * i) * G] for 1 <= j < (1 << stride)
     var powers[num_strides][2 ** stride][2][k];
-    powers = get_g_pow_stride8_table(n, k);
+    powers = K1_get_g_pow_stride8_table(n, k);
 
     // contains a dummy point G * 2 ** 255 to stand in when we are adding 0
     // this point is sometimes an input into AddUnequal, so it must be guaranteed
     // to never equal any possible partial sum that we might get
-    var dummyHolder[2][100] = get_dummy_point(n, k);
+    var dummyHolder[2][100] = K1_get_dummy_point(n, k);
     var dummy[2][k];
     for (var i = 0; i < k; i++) dummy[0][i] = dummyHolder[0][i];
     for (var i = 0; i < k; i++) dummy[1][i] = dummyHolder[1][i];
@@ -96,7 +96,7 @@ template ECDSAPrivToPub(n, k) {
     signal intermed1[num_strides - 1][2][k];
     signal intermed2[num_strides - 1][2][k];
     for (var i = 1; i < num_strides; i++) {
-        adders[i - 1] = Secp256k1AddUnequal(n, k);
+        adders[i - 1] = K1_Secp256k1AddUnequal(n, k);
         for (var idx = 0; idx < k; idx++) {
             for (var l = 0; l < 2; l++) {
                 adders[i - 1].a[l][idx] <== partial[i - 1][l][idx];
@@ -126,7 +126,7 @@ template ECDSAPrivToPub(n, k) {
 // encoded with k registers of n bits each
 // signature is (r, s)
 // Does not check that pubkey is valid
-template ECDSAVerifyNoPubkeyCheck(n, k) {
+template K1_ECDSAVerifyNoPubkeyCheck(n, k) {
     assert(k >= 2);
     assert(k <= 100);
 
@@ -137,11 +137,11 @@ template ECDSAVerifyNoPubkeyCheck(n, k) {
 
     signal output result;
 
-    var p[100] = get_secp256k1_prime(n, k);
-    var order[100] = get_secp256k1_order(n, k);
+    var p[100] = K1_get_secp256k1_prime(n, k);
+    var order[100] = K1_get_secp256k1_order(n, k);
 
     // compute multiplicative inverse of s mod n
-    var sinv_comp[100] = mod_inv(n, k, s, order);
+    var sinv_comp[100] = K1_mod_inv(n, k, s, order);
     signal sinv[k];
     component sinv_range_checks[k];
     for (var idx = 0; idx < k; idx++) {
@@ -149,7 +149,7 @@ template ECDSAVerifyNoPubkeyCheck(n, k) {
         sinv_range_checks[idx] = Num2Bits(n);
         sinv_range_checks[idx].in <== sinv[idx];
     }
-    component sinv_check = BigMultModP(n, k);
+    component sinv_check = K1_BigMultModP(n, k);
     for (var idx = 0; idx < k; idx++) {
         sinv_check.a[idx] <== sinv[idx];
         sinv_check.b[idx] <== s[idx];
@@ -165,7 +165,7 @@ template ECDSAVerifyNoPubkeyCheck(n, k) {
     }
 
     // compute (h * sinv) mod n
-    component g_coeff = BigMultModP(n, k);
+    component g_coeff = K1_BigMultModP(n, k);
     for (var idx = 0; idx < k; idx++) {
         g_coeff.a[idx] <== sinv[idx];
         g_coeff.b[idx] <== msghash[idx];
@@ -173,13 +173,13 @@ template ECDSAVerifyNoPubkeyCheck(n, k) {
     }
 
     // compute (h * sinv) * G
-    component g_mult = ECDSAPrivToPub(n, k);
+    component g_mult = K1_ECDSAPrivToPub(n, k);
     for (var idx = 0; idx < k; idx++) {
         g_mult.privkey[idx] <== g_coeff.out[idx];
     }
 
     // compute (r * sinv) mod n
-    component pubkey_coeff = BigMultModP(n, k);
+    component pubkey_coeff = K1_BigMultModP(n, k);
     for (var idx = 0; idx < k; idx++) {
         pubkey_coeff.a[idx] <== sinv[idx];
         pubkey_coeff.b[idx] <== r[idx];
@@ -187,7 +187,7 @@ template ECDSAVerifyNoPubkeyCheck(n, k) {
     }
 
     // compute (r * sinv) * pubkey
-    component pubkey_mult = Secp256k1ScalarMult(n, k);
+    component pubkey_mult = K1_Secp256k1ScalarMult(n, k);
     for (var idx = 0; idx < k; idx++) {
         pubkey_mult.scalar[idx] <== pubkey_coeff.out[idx];
         pubkey_mult.point[0][idx] <== pubkey[0][idx];
@@ -195,7 +195,7 @@ template ECDSAVerifyNoPubkeyCheck(n, k) {
     }
 
     // compute (h * sinv) * G + (r * sinv) * pubkey
-    component sum_res = Secp256k1AddUnequal(n, k);
+    component sum_res = K1_Secp256k1AddUnequal(n, k);
     for (var idx = 0; idx < k; idx++) {
         sum_res.a[0][idx] <== g_mult.pubkey[0][idx];
         sum_res.a[1][idx] <== g_mult.pubkey[1][idx];
@@ -230,7 +230,7 @@ template ECDSAVerifyNoPubkeyCheck(n, k) {
 // encoded with k registers of n bits each
 // v is a single bit
 // extended signature is (r, s, v)
-template ECDSAExtendedVerify(n, k) {
+template K1_ECDSAExtendedVerify(n, k) {
     signal input r[k];
     signal input s[k];
     signal input v;

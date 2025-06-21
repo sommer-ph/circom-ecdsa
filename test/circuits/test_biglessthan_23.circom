@@ -2,5 +2,5 @@ pragma circom 2.0.2;
 
 include "../../circuits/bigint.circom";
 
-component main {public [a, b]} = BigLessThan(2, 3);
+component main {public [a, b]} = K1_BigLessThan(2, 3);
 
