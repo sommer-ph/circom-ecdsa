@@ -7,7 +7,7 @@ include "../node_modules/circomlib/circuits/gates.circom";
 include "bigint_func.circom";
 
 // addition mod 2**n with carry bit
-template ModSum(n) {
+template K1_ModSum(n) {
     assert(n <= 252);
     signal input a;
     signal input b;
@@ -21,7 +21,7 @@ template ModSum(n) {
 }
 
 // a - b
-template ModSub(n) {
+template K1_ModSub(n) {
     assert(n <= 252);
     signal input a;
     signal input b;
@@ -36,7 +36,7 @@ template ModSub(n) {
 
 // a - b - c
 // assume a - b - c + 2**n >= 0
-template ModSubThree(n) {
+template K1_ModSubThree(n) {
     assert(n + 2 <= 253);
     signal input a;
     signal input b;
@@ -53,7 +53,7 @@ template ModSubThree(n) {
     out <== borrow * (1 << n) + a - b_plus_c;
 }
 
-template ModSumThree(n) {
+template K1_ModSumThree(n) {
     assert(n + 2 <= 253);
     signal input a;
     signal input b;
@@ -67,7 +67,7 @@ template ModSumThree(n) {
     sum <== a + b + c - carry * (1 << n);
 }
 
-template ModSumFour(n) {
+template K1_ModSumFour(n) {
     assert(n + 2 <= 253);
     signal input a;
     signal input b;
@@ -83,11 +83,11 @@ template ModSumFour(n) {
 }
 
 // product mod 2**n with carry
-template ModProd(n) {
+template K1_ModProd(n) {
     assert(n <= 126);
     signal input a;
     signal input b;
-    signal output prod;
+    signal output K1_prod;
     signal output carry;
 
     component n2b = Num2Bits(2 * n);
@@ -100,12 +100,12 @@ template ModProd(n) {
         b2n1.in[i] <== n2b.out[i];
         b2n2.in[i] <== n2b.out[i + n];
     }
-    prod <== b2n1.out;
+    K1_prod <== b2n1.out;
     carry <== b2n2.out;
 }
 
 // split a n + m bit input into two outputs
-template Split(n, m) {
+template K1_Split(n, m) {
     assert(n <= 126);
     signal input in;
     signal output small;
@@ -123,7 +123,7 @@ template Split(n, m) {
 }
 
 // split a n + m + k bit input into three outputs
-template SplitThree(n, m, k) {
+template K1_SplitThree(n, m, k) {
     assert(n <= 126);
     signal input in;
     signal output small;
@@ -146,20 +146,20 @@ template SplitThree(n, m, k) {
 
 // a[i], b[i] in 0... 2**n-1
 // represent a = a[0] + a[1] * 2**n + .. + a[k - 1] * 2**(n * k)
-template BigAdd(n, k) {
+template K1_BigAdd(n, k) {
     assert(n <= 252);
     signal input a[k];
     signal input b[k];
     signal output out[k + 1];
 
-    component unit0 = ModSum(n);
+    component unit0 = K1_ModSum(n);
     unit0.a <== a[0];
     unit0.b <== b[0];
     out[0] <== unit0.sum;
 
     component unit[k - 1];
     for (var i = 1; i < k; i++) {
-        unit[i - 1] = ModSumThree(n);
+        unit[i - 1] = K1_ModSumThree(n);
         unit[i - 1].a <== a[i];
         unit[i - 1].b <== b[i];
         if (i == 1) {
@@ -176,7 +176,7 @@ template BigAdd(n, k) {
 // a has ka registers, each with NONNEGATIVE ma-bit values (ma can be > n)
 // b has kb registers, each with NONNEGATIVE mb-bit values (mb can be > n)
 // out has ka + kb - 1 registers, each with (ma + mb + ceil(log(max(ka, kb))))-bit values
-template BigMultNoCarry(n, ma, mb, ka, kb) {
+template K1_BigMultNoCarry(n, ma, mb, ka, kb) {
     assert(ma + mb <= 253);
     signal input a[ka];
     signal input b[kb];
@@ -220,14 +220,14 @@ template BigMultNoCarry(n, ma, mb, ka, kb) {
 
 // in[i] contains longs
 // out[i] contains shorts
-template LongToShortNoEndCarry(n, k) {
+template K1_LongToShortNoEndCarry(n, k) {
     assert(n <= 126);
     signal input in[k];
     signal output out[k+1];
 
     var split[k][3];
     for (var i = 0; i < k; i++) {
-        split[i] = SplitThreeFn(in[i], n, n, n);
+        split[i] = K1_SplitThreeFn(in[i], n, n, n);
     }
 
     var carry[k];
@@ -237,7 +237,7 @@ template LongToShortNoEndCarry(n, k) {
 	out[1] <-- split[0][1];
     }
     if (k > 1) {
-        var sumAndCarry[2] = SplitFn(split[0][1] + split[1][0], n, n);
+        var sumAndCarry[2] = K1_SplitFn(split[0][1] + split[1][0], n, n);
         out[1] <-- sumAndCarry[0];
         carry[1] = sumAndCarry[1];
     }
@@ -246,7 +246,7 @@ template LongToShortNoEndCarry(n, k) {
     }
     if (k > 2) {
         for (var i = 2; i < k; i++) {
-            var sumAndCarry[2] = SplitFn(split[i][0] + split[i-1][1] + split[i-2][2] + carry[i-1], n, n);
+            var sumAndCarry[2] = K1_SplitFn(split[i][0] + split[i-1][1] + split[i-2][2] + carry[i-1], n, n);
             out[i] <-- sumAndCarry[0];
             carry[i] = sumAndCarry[1];
         }
@@ -262,31 +262,31 @@ template LongToShortNoEndCarry(n, k) {
     signal runningCarry[k];
     component runningCarryRangeChecks[k];
     runningCarry[0] <-- (in[0] - out[0]) / (1 << n);
-    runningCarryRangeChecks[0] = Num2Bits(n + log_ceil(k));
+    runningCarryRangeChecks[0] = Num2Bits(n + K1_log_ceil(k));
     runningCarryRangeChecks[0].in <== runningCarry[0];
     runningCarry[0] * (1 << n) === in[0] - out[0];
     for (var i = 1; i < k; i++) {
         runningCarry[i] <-- (in[i] - out[i] + runningCarry[i-1]) / (1 << n);
-        runningCarryRangeChecks[i] = Num2Bits(n + log_ceil(k));
+        runningCarryRangeChecks[i] = Num2Bits(n + K1_log_ceil(k));
         runningCarryRangeChecks[i].in <== runningCarry[i];
         runningCarry[i] * (1 << n) === in[i] - out[i] + runningCarry[i-1];
     }
     runningCarry[k-1] === out[k];
 }
 
-template BigMult(n, k) {
+template K1_BigMult(n, k) {
     signal input a[k];
     signal input b[k];
     signal output out[2 * k];
 
-    component mult = BigMultNoCarry(n, n, n, k, k);
+    component mult = K1_BigMultNoCarry(n, n, n, k, k);
     for (var i = 0; i < k; i++) {
         mult.a[i] <== a[i];
         mult.b[i] <== b[i];
     }
 
     // no carry is possible in the highest order register
-    component longshort = LongToShortNoEndCarry(n, 2 * k - 1);
+    component longshort = K1_LongToShortNoEndCarry(n, 2 * k - 1);
     for (var i = 0; i < 2 * k - 1; i++) {
         longshort.in[i] <== mult.out[i];
     }
@@ -295,7 +295,7 @@ template BigMult(n, k) {
     }
 }
 
-template BigLessThan(n, k){
+template K1_BigLessThan(n, k){
     signal input a[k];
     signal input b[k];
     signal output out;
@@ -341,7 +341,7 @@ template BigLessThan(n, k){
      out <== ors[0].out;
 }
 
-template BigIsEqual(k){
+template K1_BigIsEqual(k){
     signal input in[2][k];
     signal output out;
     component isEqual[k+1];
@@ -360,7 +360,7 @@ template BigIsEqual(k){
 }
 
 // leading register of b should be non-zero
-template BigMod(n, k) {
+template K1_BigMod(n, k) {
     assert(n <= 126);
     signal input a[2 * k];
     signal input b[k];
@@ -368,7 +368,7 @@ template BigMod(n, k) {
     signal output div[k + 1];
     signal output mod[k];
 
-    var longdiv[2][100] = long_div(n, k, k, a, b);
+    var longdiv[2][100] = K1_long_div(n, k, k, a, b);
     for (var i = 0; i < k; i++) {
         div[i] <-- longdiv[0][i];
         mod[i] <-- longdiv[1][i];
@@ -385,7 +385,7 @@ template BigMod(n, k) {
         mod_range_checks[i].in <== mod[i];
     }
 
-    component mul = BigMult(n, k + 1);
+    component mul = K1_BigMult(n, k + 1);
     for (var i = 0; i < k; i++) {
         mul.a[i] <== div[i];
         mul.b[i] <== b[i];
@@ -393,7 +393,7 @@ template BigMod(n, k) {
     mul.a[k] <== div[k];
     mul.b[k] <== 0;
 
-    component add = BigAdd(n, 2 * k + 2);
+    component add = K1_BigAdd(n, 2 * k + 2);
     for (var i = 0; i < 2 * k; i++) {
         add.a[i] <== mul.out[i];
         if (i < k) {
@@ -413,7 +413,7 @@ template BigMod(n, k) {
     add.out[2 * k] === 0;
     add.out[2 * k + 1] === 0;
 
-    component lt = BigLessThan(n, k);
+    component lt = K1_BigLessThan(n, k);
     for (var i = 0; i < k; i++) {
         lt.a[i] <== mod[i];
         lt.b[i] <== b[i];
@@ -424,21 +424,21 @@ template BigMod(n, k) {
 // a[i], b[i] in 0... 2**n-1
 // represent a = a[0] + a[1] * 2**n + .. + a[k - 1] * 2**(n * k)
 // assume a >= b
-template BigSub(n, k) {
+template K1_BigSub(n, k) {
     assert(n <= 252);
     signal input a[k];
     signal input b[k];
     signal output out[k];
     signal output underflow;
 
-    component unit0 = ModSub(n);
+    component unit0 = K1_ModSub(n);
     unit0.a <== a[0];
     unit0.b <== b[0];
     out[0] <== unit0.out;
 
     component unit[k - 1];
     for (var i = 1; i < k; i++) {
-        unit[i - 1] = ModSubThree(n);
+        unit[i - 1] = K1_ModSubThree(n);
         unit[i - 1].a <== a[i];
         unit[i - 1].b <== b[i];
         if (i == 1) {
@@ -453,20 +453,20 @@ template BigSub(n, k) {
 
 // calculates (a - b) % p, where a, b < p
 // note: does not assume a >= b
-template BigSubModP(n, k){
+template K1_BigSubModP(n, k){
     assert(n <= 252);
     signal input a[k];
     signal input b[k];
     signal input p[k];
     signal output out[k];
-    component sub = BigSub(n, k);
+    component sub = K1_BigSub(n, k);
     for (var i = 0; i < k; i++){
         sub.a[i] <== a[i];
         sub.b[i] <== b[i];
     }
     signal flag;
     flag <== sub.underflow;
-    component add = BigAdd(n, k);
+    component add = K1_BigAdd(n, k);
     for (var i = 0; i < k; i++){
         add.a[i] <== sub.out[i];
         add.b[i] <== p[i];
@@ -478,19 +478,19 @@ template BigSubModP(n, k){
     }
 }
 
-template BigMultModP(n, k) {
+template K1_BigMultModP(n, k) {
     assert(n <= 252);
     signal input a[k];
     signal input b[k];
     signal input p[k];
     signal output out[k];
 
-    component big_mult = BigMult(n, k);
+    component big_mult = K1_BigMult(n, k);
     for (var i = 0; i < k; i++) {
         big_mult.a[i] <== a[i];
         big_mult.b[i] <== b[i];
     }
-    component big_mod = BigMod(n, k);
+    component big_mod = K1_BigMod(n, k);
     for (var i = 0; i < 2 * k; i++) {
         big_mod.a[i] <== big_mult.out[i];
     }
@@ -502,14 +502,14 @@ template BigMultModP(n, k) {
     }
 }
 
-template BigModInv(n, k) {
+template K1_BigModInv(n, k) {
     assert(n <= 252);
     signal input in[k];
     signal input p[k];
     signal output out[k];
 
     // length k
-    var inv[100] = mod_inv(n, k, in, p);
+    var inv[100] = K1_mod_inv(n, k, in, p);
     for (var i = 0; i < k; i++) {
         out[i] <-- inv[i];
     }
@@ -519,12 +519,12 @@ template BigModInv(n, k) {
         range_checks[i].in <== out[i];
     }
 
-    component mult = BigMult(n, k);
+    component mult = K1_BigMult(n, k);
     for (var i = 0; i < k; i++) {
         mult.a[i] <== in[i];
         mult.b[i] <== out[i];
     }
-    component mod = BigMod(n, k);
+    component mod = K1_BigMod(n, k);
     for (var i = 0; i < 2 * k; i++) {
         mod.a[i] <== mult.out[i];
     }
@@ -540,7 +540,7 @@ template BigModInv(n, k) {
 // in[i] contains values in the range -2^(m-1) to 2^(m-1)
 // constrain that in[] as a big integer is zero
 // each limbs is n bits
-template CheckCarryToZero(n, m, k) {
+template K1_CheckCarryToZero(n, m, k) {
     assert(k >= 2);
     
     var EPSILON = 3;

@@ -1,11 +1,11 @@
 pragma circom 2.0.2;
 
-function isNegative(x) {
+function K1_isNegative(x) {
     // half babyjubjub field size
     return x > 10944121435919637611123202872628637544274182200208017171849102093287904247808 ? 1 : 0;
 }
 
-function div_ceil(m, n) {
+function K1_div_ceil(m, n) {
     var ret = 0;
     if (m % n == 0) {
         ret = m \ n;
@@ -15,7 +15,7 @@ function div_ceil(m, n) {
     return ret;
 }
 
-function log_ceil(n) {
+function K1_log_ceil(n) {
    var n_temp = n;
    for (var i = 0; i < 254; i++) {
        if (n_temp == 0) {
@@ -26,24 +26,24 @@ function log_ceil(n) {
    return 254;
 }
 
-function SplitFn(in, n, m) {
+function K1_SplitFn(in, n, m) {
     return [in % (1 << n), (in \ (1 << n)) % (1 << m)];
 }
 
-function SplitThreeFn(in, n, m, k) {
+function K1_SplitThreeFn(in, n, m, k) {
     return [in % (1 << n), (in \ (1 << n)) % (1 << m), (in \ (1 << n + m)) % (1 << k)];
 }
 
 // in is an m bit number
 // split into ceil(m/n) n-bit registers
-function splitOverflowedRegister(m, n, in) {
+function K1_splitOverflowedRegister(m, n, in) {
     var out[100];
 
     for (var i = 0; i < 100; i++) {
         out[i] = 0;
     }
 
-    var nRegisters = div_ceil(m, n);
+    var nRegisters = K1_div_ceil(m, n);
     var running = in;
     for (var i = 0; i < nRegisters; i++) {
         out[i] = running % (1<<n);
@@ -60,7 +60,7 @@ function splitOverflowedRegister(m, n, in) {
 // all others are positive
 // - 1 since the last register is included in the last ceil(m/n) array
 // + 1 since the carries from previous registers could push you over
-function getProperRepresentation(m, n, k, in) {
+function K1_getProperRepresentation(m, n, k, in) {
     var ceilMN = 0; // ceil(m/n)
     if (m % n == 0) {
         ceilMN = m \ n;
@@ -73,13 +73,13 @@ function getProperRepresentation(m, n, k, in) {
         for (var j = 0; j < 100; j++) {
             pieces[i][j] = 0;
         }
-        if (isNegative(in[i]) == 1) {
-            var negPieces[100] = splitOverflowedRegister(m, n, -1 * in[i]);
+        if (K1_isNegative(in[i]) == 1) {
+            var negPieces[100] = K1_splitOverflowedRegister(m, n, -1 * in[i]);
             for (var j = 0; j < ceilMN; j++) {
                 pieces[i][j] = -1 * negPieces[j];
             }
         } else {
-            pieces[i] = splitOverflowedRegister(m, n, in[i]);
+            pieces[i] = K1_splitOverflowedRegister(m, n, in[i]);
         }
     }
 
@@ -107,7 +107,7 @@ function getProperRepresentation(m, n, k, in) {
             }
         }
 
-        if (isNegative(thisRegisterValue) == 1) {
+        if (K1_isNegative(thisRegisterValue) == 1) {
             var thisRegisterAbs = -1 * thisRegisterValue;
             out[registerIdx] = (1<<n) - (thisRegisterAbs % (1<<n));
             carries[registerIdx] = -1 * (thisRegisterAbs >> n) - 1;
@@ -121,7 +121,7 @@ function getProperRepresentation(m, n, k, in) {
 }
 
 // 1 if true, 0 if false
-function long_gt(n, k, a, b) {
+function K1_long_gt(n, k, a, b) {
     for (var i = k - 1; i >= 0; i--) {
         if (a[i] > b[i]) {
             return 1;
@@ -137,7 +137,7 @@ function long_gt(n, k, a, b) {
 // a has k registers
 // b has k registers
 // a >= b
-function long_sub(n, k, a, b) {
+function K1_long_sub(n, k, a, b) {
     var diff[100];
     var borrow[100];
     for (var i = 0; i < k; i++) {
@@ -164,7 +164,7 @@ function long_sub(n, k, a, b) {
 
 // a is a n-bit scalar
 // b has k registers
-function long_scalar_mult(n, k, a, b) {
+function K1_long_scalar_mult(n, k, a, b) {
     var out[100];
     for (var i = 0; i < 100; i++) {
         out[i] = 0;
@@ -185,7 +185,7 @@ function long_scalar_mult(n, k, a, b) {
 // out[1] has length k -- remainder
 // implements algorithm of https://people.eecs.berkeley.edu/~fateman/282/F%20Wright%20notes/week4.pdf
 // b[k-1] must be nonzero!
-function long_div(n, k, m, a, b){
+function K1_long_div(n, k, m, a, b){
     var out[2][100];
 
     var remainder[200];
@@ -207,9 +207,9 @@ function long_div(n, k, m, a, b){
             }
         }
 
-        out[0][i] = short_div(n, k, dividend, b);
+        out[0][i] = K1_short_div(n, k, dividend, b);
 
-        var mult_shift[100] = long_scalar_mult(n, k, out[0][i], b);
+        var mult_shift[100] = K1_long_scalar_mult(n, k, out[0][i], b);
         var subtrahend[200];
         for (var j = 0; j < m + k; j++) {
             subtrahend[j] = 0;
@@ -219,7 +219,7 @@ function long_div(n, k, m, a, b){
                subtrahend[i + j] = mult_shift[j];
             }
         }
-        remainder = long_sub(n, m + k, remainder, subtrahend);
+        remainder = K1_long_sub(n, m + k, remainder, subtrahend);
     }
     for (var i = 0; i < k; i++) {
         out[1][i] = remainder[i];
@@ -234,16 +234,16 @@ function long_div(n, k, m, a, b){
 // b has k registers
 // assumes leading digit of b is at least 2 ** (n - 1)
 // 0 <= a < (2**n) * b
-function short_div_norm(n, k, a, b) {
+function K1_short_div_norm(n, k, a, b) {
    var qhat = (a[k] * (1 << n) + a[k - 1]) \ b[k - 1];
    if (qhat > (1 << n) - 1) {
       qhat = (1 << n) - 1;
    }
 
-   var mult[100] = long_scalar_mult(n, k, qhat, b);
-   if (long_gt(n, k + 1, mult, a) == 1) {
-      mult = long_sub(n, k + 1, mult, b);
-      if (long_gt(n, k + 1, mult, a) == 1) {
+   var mult[100] = K1_long_scalar_mult(n, k, qhat, b);
+   if (K1_long_gt(n, k + 1, mult, a) == 1) {
+      mult = K1_long_sub(n, k + 1, mult, b);
+      if (K1_long_gt(n, k + 1, mult, a) == 1) {
          return qhat - 2;
       } else {
          return qhat - 1;
@@ -258,19 +258,19 @@ function short_div_norm(n, k, a, b) {
 // b has k registers
 // assumes leading digit of b is non-zero
 // 0 <= a < (2**n) * b
-function short_div(n, k, a, b) {
+function K1_short_div(n, k, a, b) {
    var scale = (1 << n) \ (1 + b[k - 1]);
 
    // k + 2 registers now
-   var norm_a[200] = long_scalar_mult(n, k + 1, scale, a);
+   var norm_a[200] = K1_long_scalar_mult(n, k + 1, scale, a);
    // k + 1 registers now
-   var norm_b[200] = long_scalar_mult(n, k, scale, b);
+   var norm_b[200] = K1_long_scalar_mult(n, k, scale, b);
 
    var ret;
    if (norm_b[k] != 0) {
-       ret = short_div_norm(n, k + 1, norm_a, norm_b);
+       ret = K1_short_div_norm(n, k + 1, norm_a, norm_b);
    } else {
-       ret = short_div_norm(n, k, norm_a, norm_b);
+       ret = K1_short_div_norm(n, k, norm_a, norm_b);
    }
    return ret;
 }
@@ -279,7 +279,7 @@ function short_div(n, k, a, b) {
 // a and b both have k registers
 // out[0] has length 2 * k
 // adapted from BigMulShortLong and LongToShortNoEndCarry2 witness computation
-function prod(n, k, a, b) {
+function K1_prod(n, k, a, b) {
     // first compute the intermediate values. taken from BigMulShortLong
     var prod_val[100]; // length is 2 * k - 1
     for (var i = 0; i < 2 * k - 1; i++) {
@@ -300,20 +300,20 @@ function prod(n, k, a, b) {
 
     var split[100][3]; // first dimension has length 2 * k - 1
     for (var i = 0; i < 2 * k - 1; i++) {
-        split[i] = SplitThreeFn(prod_val[i], n, n, n);
+        split[i] = K1_SplitThreeFn(prod_val[i], n, n, n);
     }
 
     var carry[100]; // length is 2 * k - 1
     carry[0] = 0;
     out[0] = split[0][0];
     if (2 * k - 1 > 1) {
-        var sumAndCarry[2] = SplitFn(split[0][1] + split[1][0], n, n);
+        var sumAndCarry[2] = K1_SplitFn(split[0][1] + split[1][0], n, n);
         out[1] = sumAndCarry[0];
         carry[1] = sumAndCarry[1];
     }
     if (2 * k - 1 > 2) {
         for (var i = 2; i < 2 * k - 1; i++) {
-            var sumAndCarry[2] = SplitFn(split[i][0] + split[i-1][1] + split[i-2][2] + carry[i-1], n, n);
+            var sumAndCarry[2] = K1_SplitFn(split[i][0] + split[i-1][1] + split[i-2][2] + carry[i-1], n, n);
             out[i] = sumAndCarry[0];
             carry[i] = sumAndCarry[1];
         }
@@ -329,7 +329,7 @@ function prod(n, k, a, b) {
 // k * n <= 500
 // p is a prime
 // computes a^e mod p
-function mod_exp(n, k, a, p, e) {
+function K1_mod_exp(n, k, a, p, e) {
     var eBits[500]; // length is k * n
     for (var i = 0; i < k; i++) {
         for (var j = 0; j < n; j++) {
@@ -348,18 +348,18 @@ function mod_exp(n, k, a, p, e) {
         // multiply by a if bit is 0
         if (eBits[i] == 1) {
             var temp[200]; // length 2 * k
-            temp = prod(n, k, out, a);
+            temp = K1_prod(n, k, out, a);
             var temp2[2][100];
-            temp2 = long_div(n, k, k, temp, p);
+            temp2 = K1_long_div(n, k, k, temp, p);
             out = temp2[1];
         }
 
         // square, unless we're at the end
         if (i > 0) {
             var temp[200]; // length 2 * k
-            temp = prod(n, k, out, out);
+            temp = K1_prod(n, k, out, out);
             var temp2[2][100];
-            temp2 = long_div(n, k, k, temp, p);
+            temp2 = K1_long_div(n, k, k, temp, p);
             out = temp2[1];
         }
 
@@ -374,7 +374,7 @@ function mod_exp(n, k, a, p, e) {
 // p is a prime
 // if a == 0 mod p, returns 0
 // else computes inv = a^(p-2) mod p
-function mod_inv(n, k, a, p) {
+function K1_mod_inv(n, k, a, p) {
     var isZero = 1;
     for (var i = 0; i < k; i++) {
         if (a[i] != 0) {
@@ -405,38 +405,38 @@ function mod_inv(n, k, a, p) {
     two[0] = 2;
 
     var pMinusTwo[100];
-    pMinusTwo = long_sub(n, k, pCopy, two); // length k
+    pMinusTwo = K1_long_sub(n, k, pCopy, two); // length k
     var out[100];
-    out = mod_exp(n, k, a, pCopy, pMinusTwo);
+    out = K1_mod_exp(n, k, a, pCopy, pMinusTwo);
     return out;
 }
 
 // a, b and out are all n bits k registers
-function long_sub_mod_p(n, k, a, b, p){
-    var gt = long_gt(n, k, a, b);
+function K1_long_sub_mod_p(n, k, a, b, p){
+    var gt = K1_long_gt(n, k, a, b);
     var tmp[100];
     if(gt){
-        tmp = long_sub(n, k, a, b);
+        tmp = K1_long_sub(n, k, a, b);
     }
     else{
-        tmp = long_sub(n, k, b, a);
+        tmp = K1_long_sub(n, k, b, a);
     }
     var out[2][100];
     for(var i = k;i < 2 * k; i++){
         tmp[i] = 0;
     }
-    out = long_div(n, k, k, tmp, p);
+    out = K1_long_div(n, k, k, tmp, p);
     if(gt==0){
-        tmp = long_sub(n, k, p, out[1]);
+        tmp = K1_long_sub(n, k, p, out[1]);
     }
     return tmp;
 }
 
 // a, b, p and out are all n bits k registers
-function prod_mod_p(n, k, a, b, p){
+function K1_prod_mod_p(n, k, a, b, p){
     var tmp[100];
     var result[2][100];
-    tmp = prod(n, k, a, b);
-    result = long_div(n, k, k, tmp, p);
+    tmp = K1_prod(n, k, a, b);
+    result = K1_long_div(n, k, k, tmp, p);
     return result[1];
 }

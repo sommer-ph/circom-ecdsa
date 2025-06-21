@@ -3,7 +3,7 @@ pragma circom 2.0.2;
 include "./utils.circom";
 include "./permutations.circom";
 
-template Pad(nBits) {
+template K1_Pad(nBits) {
     signal input in[nBits];
 
     var blockSize=136*8;
@@ -22,7 +22,7 @@ template Pad(nBits) {
     for (i=nBits+8; i<blockSize; i++) {
         out2[i] <== 0;
     }
-    component aux = OrArray(8);
+    component aux = K1_OrArray(8);
     for (i=0; i<8; i++) {
         aux.a[i] <== out2[blockSize-8+i];
         aux.b[i] <== (0x80 >> i) & 1;
@@ -35,15 +35,15 @@ template Pad(nBits) {
     }
 }
 
-template KeccakfRound(r) {
+template K1_KeccakfRound(r) {
     signal input in[25*64];
     signal output out[25*64];
     var i;
 
-    component theta = Theta();
-    component rhopi = RhoPi();
-    component chi = Chi();
-    component iota = Iota(r);
+    component theta = K1_Theta();
+    component rhopi = K1_RhoPi();
+    component chi = K1_Chi();
+    component iota = K1_Iota(r);
 
     for (i=0; i<25*64; i++) {
         theta.in[i] <== in[i];
@@ -62,7 +62,7 @@ template KeccakfRound(r) {
     }
 }
 
-template Absorb() {
+template K1_Absorb() {
     var blockSizeBytes=136;
 
     signal input s[25*64];
@@ -72,10 +72,10 @@ template Absorb() {
     var j;
 
     component aux[blockSizeBytes/8];
-    component newS = Keccakf();
+    component newS = K1_Keccakf();
 
     for (i=0; i<blockSizeBytes/8; i++) {
-        aux[i] = XorArray(64);
+        aux[i] = K1_XorArray(64);
         for (j=0; j<64; j++) {
             aux[i].a[j] <== s[i*64+j];
             aux[i].b[j] <== block[i*64+j];
@@ -94,19 +94,19 @@ template Absorb() {
     }
 }
 
-template Final(nBits) {
+template K1_Final(nBits) {
     signal input in[nBits];
     signal output out[25*64];
     var blockSize=136*8;
     var i;
 
     // pad
-    component pad = Pad(nBits);
+    component pad = K1_Pad(nBits);
     for (i=0; i<nBits; i++) {
         pad.in[i] <== in[i];
     }
     // absorb
-    component abs = Absorb();
+    component abs = K1_Absorb();
     for (i=0; i<blockSize; i++) {
         abs.block[i] <== pad.out[i];
     }
@@ -118,7 +118,7 @@ template Final(nBits) {
     }
 }
 
-template Squeeze(nBits) {
+template K1_Squeeze(nBits) {
     signal input s[25*64];
     signal output out[nBits];
     var i;
@@ -133,7 +133,7 @@ template Squeeze(nBits) {
     }
 }
 
-template Keccakf() {
+template K1_Keccakf() {
     signal input in[25*64];
     signal output out[25*64];
     var i;
@@ -143,7 +143,7 @@ template Keccakf() {
     component round[24];
     signal midRound[24*25*64];
     for (i=0; i<24; i++) {
-        round[i] = KeccakfRound(i);
+        round[i] = K1_KeccakfRound(i);
         if (i==0) {
             for (j=0; j<25*64; j++) {
                 midRound[j] <== in[j];
@@ -164,16 +164,16 @@ template Keccakf() {
     }
 }
 
-template Keccak(nBitsIn, nBitsOut) {
+template K1_Keccak(nBitsIn, nBitsOut) {
     signal input in[nBitsIn];
     signal output out[nBitsOut];
     var i;
 
-    component f = Final(nBitsIn);
+    component f = K1_Final(nBitsIn);
     for (i=0; i<nBitsIn; i++) {
         f.in[i] <== in[i];
     }
-    component squeeze = Squeeze(nBitsOut);
+    component squeeze = K1_Squeeze(nBitsOut);
     for (i=0; i<25*64; i++) {
         squeeze.s[i] <== f.out[i];
     }

@@ -19,7 +19,7 @@ include "../../circuits/eth_addr.circom";
   - msgAttestation
   
   Prove:
-  - PrivKeyToAddr(privkey) == myAddr
+  - K1_PrivKeyToAddr(privkey) == myAddr
   - (x - addr1)(x - addr2)(x - addr3) == 0
   - msgAttestation == mimc(msg, privkey)
 */
@@ -46,7 +46,7 @@ template Main(n, k) {
     }
 
     // compute addr
-    component privToAddr = PrivKeyToAddr(n, k);
+    component privToAddr = K1_PrivKeyToAddr(n, k);
     for (var i = 0; i < k; i++) {
         privToAddr.privkey[i] <== privkey[i];
     }

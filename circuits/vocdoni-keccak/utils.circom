@@ -4,7 +4,7 @@ include "../../node_modules/circomlib/circuits/gates.circom";
 include "../../node_modules/circomlib/circuits/sha256/xor3.circom";
 include "../../node_modules/circomlib/circuits/sha256/shift.circom"; // contains ShiftRight
 
-template Xor5(n) {
+template K1_Xor5(n) {
     signal input a[n];
     signal input b[n];
     signal input c[n];
@@ -19,12 +19,12 @@ template Xor5(n) {
         xor3.b[i] <== b[i];
         xor3.c[i] <== c[i];
     }
-    component xor4 = XorArray(n);
+    component xor4 = K1_XorArray(n);
     for (i=0; i<n; i++) {
         xor4.a[i] <== xor3.out[i];
         xor4.b[i] <== d[i];
     }
-    component xor5 = XorArray(n);
+    component xor5 = K1_XorArray(n);
     for (i=0; i<n; i++) {
         xor5.a[i] <== xor4.out[i];
         xor5.b[i] <== e[i];
@@ -34,7 +34,7 @@ template Xor5(n) {
     }
 }
 
-template XorArray(n) {
+template K1_XorArray(n) {
     signal input a[n];
     signal input b[n];
     signal output out[n];
@@ -51,7 +51,7 @@ template XorArray(n) {
     }
 }
 
-template XorArraySingle(n) {
+template K1_XorArraySingle(n) {
     signal input a[n];
     signal output out[n];
     var i;
@@ -67,7 +67,7 @@ template XorArraySingle(n) {
     }
 }
 
-template OrArray(n) {
+template K1_OrArray(n) {
     signal input a[n];
     signal input b[n];
     signal output out[n];
@@ -84,7 +84,7 @@ template OrArray(n) {
     }
 }
 
-template AndArray(n) {
+template K1_AndArray(n) {
     signal input a[n];
     signal input b[n];
     signal output out[n];
@@ -101,7 +101,7 @@ template AndArray(n) {
     }
 }
 
-template ShL(n, r) {
+template K1_ShL(n, r) {
     signal input in[n];
     signal output out[n];
 
