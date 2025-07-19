@@ -113,29 +113,35 @@ template BJJ_ScalarMult(n, k) {
         if (i == 0) ry[i] <== 1; else ry[i] <== 0;
     }
 
+    component dbl[k * n];
+    component add[k * n];
+    signal tx[k * n][k];
+    signal ty[k * n][k];
+
     for (var i = k - 1; i >= 0; i--) {
         for (var j = n - 1; j >= 0; j--) {
-            component dbl = BJJ_PointDoubling(n, k);
+            dbl[i * n + j] = BJJ_PointDoubling(n, k);
             for (var l = 0; l < k; l++) {
-                dbl.in[0][l] <== rx[l];
-                dbl.in[1][l] <== ry[l];
+                dbl[i * n + j].in[0][l] <== rx[l];
+                dbl[i * n + j].in[1][l] <== ry[l];
             }
-            signal tx[k];
-            signal ty[k];
+
             for (var l = 0; l < k; l++) {
-                tx[l] <== dbl.out[0][l];
-                ty[l] <== dbl.out[1][l];
+                tx[i * n + j][l] <== dbl[i * n + j].out[0][l];
+                ty[i * n + j][l] <== dbl[i * n + j].out[1][l];
             }
-            component add = BJJ_PointAddition(n, k);
+
+            add[i * n + j] = BJJ_PointAddition(n, k);
             for (var l = 0; l < k; l++) {
-                add.a[0][l] <== tx[l];
-                add.a[1][l] <== ty[l];
-                add.b[0][l] <== point[0][l];
-                add.b[1][l] <== point[1][l];
+                add[i * n + j].a[0][l] <== tx[i * n + j][l];
+                add[i * n + j].a[1][l] <== ty[i * n + j][l];
+                add[i * n + j].b[0][l] <== point[0][l];
+                add[i * n + j].b[1][l] <== point[1][l];
             }
+
             for (var l = 0; l < k; l++) {
-                rx[l] <== n2b[i].out[j] * (add.out[0][l] - tx[l]) + tx[l];
-                ry[l] <== n2b[i].out[j] * (add.out[1][l] - ty[l]) + ty[l];
+                rx[l] <== n2b[i].out[j] * (add[i * n + j].out[0][l] - tx[i * n + j][l]) + tx[i * n + j][l];
+                ry[l] <== n2b[i].out[j] * (add[i * n + j].out[1][l] - ty[i * n + j][l]) + ty[i * n + j][l];
             }
         }
     }
