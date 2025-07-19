@@ -1,165 +1,156 @@
 pragma circom 2.2.0;
 
-include "bigint.circom";
-include "bigint_func.circom";
+include "../node_modules/circomlib/circuits/bitify.circom";
+include "../node_modules/circomlib/circuits/babyjub.circom";
+include "../node_modules/circomlib/circuits/escalarmulany.circom";
 include "babyjub_utils.circom";
 
-// add two big integers, returning k+1 limbs
-function BJJ_add(n, k, a, b) {
-    var out[100];
-    var carry = 0;
+// combine k limbs of n bits into a field element
+template LimbsToField(n, k) {
+    signal input limbs[k];
+    signal output out;
+
+    var factor = 1;
+    var acc = 0;
     for (var i = 0; i < k; i++) {
-        var temp = a[i] + b[i] + carry;
-        out[i] = temp % (1 << n);
-        carry = temp / (1 << n);
+        acc = acc + limbs[i] * factor;
+        factor = factor * (1 << n);
     }
-    out[k] = carry;
-    return out;
+    out <== acc;
 }
 
-function BJJ_add_mod_p(n, k, a, b, p) {
-    var sum[100] = BJJ_add(n, k, a, b);
-    var res[2][100] = K1_long_div(n, k, k, sum, p);
-    return res[1];
+// split a field element into k limbs of n bits
+template FieldToLimbs(n, k) {
+    signal input in;
+    signal output limbs[k];
+
+    var bitLen = n * k <= 254 ? n * k : 254;
+    component bits = Num2Bits(bitLen);
+    bits.in <== in;
+
+    component b2n[k];
+    for (var i = 0; i < k; i++) {
+        b2n[i] = Bits2Num(n);
+        for (var j = 0; j < n; j++) {
+            var idx = i * n + j;
+            if (idx < bitLen) {
+                bits.out[idx] ==> b2n[i].in[j];
+            } else {
+                b2n[i].in[j] <== 0;
+            }
+        }
+        b2n[i].out ==> limbs[i];
+    }
 }
 
-function BJJ_sub_mod_p(n, k, a, b, p) {
-    return K1_long_sub_mod_p(n, k, a, b, p);
-}
-
-function BJJ_mul_mod_p(n, k, a, b, p) {
-    return K1_prod_mod_p(n, k, a, b, p);
-}
-
-function BJJ_inv_mod_p(n, k, a, p) {
-    return K1_mod_inv(n, k, a, p);
-}
-
-// twisted Edwards addition
+// point addition using circomlib babyjub primitives
 template BJJ_PointAddition(n, k) {
     signal input a[2][k];
     signal input b[2][k];
     signal output out[2][k];
 
-    var p[100] = BJJ_get_p(n, k);
-    var d[100] = BJJ_get_d(n, k);
-    var aparam[100] = BJJ_get_a(n, k);
-    var one[100];
-    for (var i = 0; i < 100; i++) one[i] = i == 0 ? 1 : 0;
-
-    var x1y2[100] = BJJ_mul_mod_p(n, k, a[0], b[1], p);
-    var y1x2[100] = BJJ_mul_mod_p(n, k, a[1], b[0], p);
-    var numx[100] = BJJ_add_mod_p(n, k, x1y2, y1x2, p);
-
-    var x1x2[100] = BJJ_mul_mod_p(n, k, a[0], b[0], p);
-    var y1y2[100] = BJJ_mul_mod_p(n, k, a[1], b[1], p);
-    var prod[100] = BJJ_mul_mod_p(n, k, x1x2, y1y2, p);
-
-    var dprod[100] = BJJ_mul_mod_p(n, k, d, prod, p);
-    var denx_pre[100] = BJJ_add_mod_p(n, k, one, dprod, p);
-    var denx[100];
-    for (var i = 0; i < k; i++) denx[i] = denx_pre[i];
-    var denx_inv[100] = BJJ_inv_mod_p(n, k, denx, p);
-    var outx_pre[100] = BJJ_mul_mod_p(n, k, numx, denx_inv, p);
-
-    var ax1x2[100] = BJJ_mul_mod_p(n, k, aparam, x1x2, p);
-    var numy_pre[100] = BJJ_sub_mod_p(n, k, y1y2, ax1x2, p);
-    var deny_pre_temp[100] = BJJ_sub_mod_p(n, k, one, dprod, p);
-    var deny[100];
-    for (var i = 0; i < k; i++) deny[i] = deny_pre_temp[i];
-    var deny_inv[100] = BJJ_inv_mod_p(n, k, deny, p);
-    var outy_pre[100] = BJJ_mul_mod_p(n, k, numy_pre, deny_inv, p);
-
+    component ax = LimbsToField(n, k);
+    component ay = LimbsToField(n, k);
+    component bx = LimbsToField(n, k);
+    component by = LimbsToField(n, k);
     for (var i = 0; i < k; i++) {
-        out[0][i] <== outx_pre[i];
-        out[1][i] <== outy_pre[i];
+        ax.limbs[i] <== a[0][i];
+        ay.limbs[i] <== a[1][i];
+        bx.limbs[i] <== b[0][i];
+        by.limbs[i] <== b[1][i];
+    }
+
+    component add = BabyAdd();
+    add.x1 <== ax.out;
+    add.y1 <== ay.out;
+    add.x2 <== bx.out;
+    add.y2 <== by.out;
+
+    component sx = FieldToLimbs(n, k);
+    component sy = FieldToLimbs(n, k);
+    sx.in <== add.xout;
+    sy.in <== add.yout;
+    for (var i = 0; i < k; i++) {
+        out[0][i] <== sx.limbs[i];
+        out[1][i] <== sy.limbs[i];
     }
 }
 
-// doubling using addition with itself
+// doubling uses circomlib BabyDbl
 template BJJ_PointDoubling(n, k) {
     signal input in[2][k];
     signal output out[2][k];
 
-    component add = BJJ_PointAddition(n, k);
+    component ix = LimbsToField(n, k);
+    component iy = LimbsToField(n, k);
     for (var i = 0; i < k; i++) {
-        add.a[0][i] <== in[0][i];
-        add.a[1][i] <== in[1][i];
-        add.b[0][i] <== in[0][i];
-        add.b[1][i] <== in[1][i];
+        ix.limbs[i] <== in[0][i];
+        iy.limbs[i] <== in[1][i];
     }
+
+    component dbl = BabyDbl();
+    dbl.x <== ix.out;
+    dbl.y <== iy.out;
+
+    component sx = FieldToLimbs(n, k);
+    component sy = FieldToLimbs(n, k);
+    sx.in <== dbl.xout;
+    sy.in <== dbl.yout;
     for (var i = 0; i < k; i++) {
-        out[0][i] <== add.out[0][i];
-        out[1][i] <== add.out[1][i];
+        out[0][i] <== sx.limbs[i];
+        out[1][i] <== sy.limbs[i];
     }
 }
 
-// simple double and add scalar multiplication
+// scalar multiplication using EscalarMulAny
 template BJJ_ScalarMult(n, k) {
     signal input scalar[k];
     signal input point[2][k];
     signal output out[2][k];
 
-    component n2b[k];
+    component scField = LimbsToField(n, k);
+    for (var i = 0; i < k; i++) scField.limbs[i] <== scalar[i];
+
+    component sBits = Num2Bits(253);
+    sBits.in <== scField.out;
+
+    component px = LimbsToField(n, k);
+    component py = LimbsToField(n, k);
     for (var i = 0; i < k; i++) {
-        n2b[i] = Num2Bits(n);
-        n2b[i].in <== scalar[i];
+        px.limbs[i] <== point[0][i];
+        py.limbs[i] <== point[1][i];
     }
 
-    signal rx[k];
-    signal ry[k];
-    for (var i = 0; i < k; i++) {
-        rx[i] <== 0;
-        if (i == 0) ry[i] <== 1; else ry[i] <== 0;
+    component mul = EscalarMulAny(253);
+    for (var i = 0; i < 253; i++) {
+        mul.e[i] <== sBits.out[i];
     }
+    mul.p[0] <== px.out;
+    mul.p[1] <== py.out;
 
-    for (var i = k - 1; i >= 0; i--) {
-        for (var j = n - 1; j >= 0; j--) {
-            component dbl = BJJ_PointDoubling(n, k);
-            for (var l = 0; l < k; l++) {
-                dbl.in[0][l] <== rx[l];
-                dbl.in[1][l] <== ry[l];
-            }
-            signal tx[k];
-            signal ty[k];
-            for (var l = 0; l < k; l++) {
-                tx[l] <== dbl.out[0][l];
-                ty[l] <== dbl.out[1][l];
-            }
-            component add = BJJ_PointAddition(n, k);
-            for (var l = 0; l < k; l++) {
-                add.a[0][l] <== tx[l];
-                add.a[1][l] <== ty[l];
-                add.b[0][l] <== point[0][l];
-                add.b[1][l] <== point[1][l];
-            }
-            for (var l = 0; l < k; l++) {
-                rx[l] <== n2b[i].out[j] * (add.out[0][l] - tx[l]) + tx[l];
-                ry[l] <== n2b[i].out[j] * (add.out[1][l] - ty[l]) + ty[l];
-            }
-        }
-    }
-    for (var l = 0; l < k; l++) {
-        out[0][l] <== rx[l];
-        out[1][l] <== ry[l];
+    component sx = FieldToLimbs(n, k);
+    component sy = FieldToLimbs(n, k);
+    sx.in <== mul.out[0];
+    sy.in <== mul.out[1];
+    for (var i = 0; i < k; i++) {
+        out[0][i] <== sx.limbs[i];
+        out[1][i] <== sy.limbs[i];
     }
 }
 
-// check point on curve: a x^2 + y^2 = 1 + d x^2 y^2
+// check point lies on curve using BabyCheck
 template BJJ_OnCurve(n, k) {
     signal input x[k];
     signal input y[k];
 
-    var p[100] = BJJ_get_p(n, k);
-    var d[100] = BJJ_get_d(n, k);
-    var aparam[100] = BJJ_get_a(n, k);
-    var one[100];
-    for (var i = 0; i < 100; i++) one[i] = i==0?1:0;
+    component fx = LimbsToField(n, k);
+    component fy = LimbsToField(n, k);
+    for (var i = 0; i < k; i++) {
+        fx.limbs[i] <== x[i];
+        fy.limbs[i] <== y[i];
+    }
 
-    var x2[100] = BJJ_mul_mod_p(n, k, x, x, p);
-    var y2[100] = BJJ_mul_mod_p(n, k, y, y, p);
-    var left_part[100] = BJJ_add_mod_p(n, k, BJJ_mul_mod_p(n,k,aparam,x2,p), y2, p);
-    var xy2[100] = BJJ_mul_mod_p(n, k, x2, y2, p);
-    var right_part[100] = BJJ_add_mod_p(n, k, one, BJJ_mul_mod_p(n,k,d,xy2,p), p);
-    for (var i = 0; i < k; i++) left_part[i] === right_part[i];
+    component chk = BabyCheck();
+    chk.x <== fx.out;
+    chk.y <== fy.out;
 }
