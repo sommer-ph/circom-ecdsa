@@ -70,3 +70,4 @@ You can run a CLI demo of a zkSNARK-enabled group signature generator once you'v
 This project was built during [0xPARC](http://0xparc.org/)'s [Applied ZK Learning Group #1](https://0xparc.org/blog/zk-learning-group).
 
 We use a [circom implementation of keccak](https://github.com/vocdoni/keccak256-circom) from Vocdoni. We also use some circom utilities for converting an ECDSA public key to an Ethereum address implemented by [lsankar4033](https://github.com/lsankar4033), [jefflau](https://github.com/jefflau), and [veronicaz41](https://github.com/veronicaz41) for another ZK Learning Group project in the same cohort.  We use an optimization for big integer multiplication from [xJsnark](https://github.com/akosba/xjsnark).
+\n## Baby JubJub Support\nNew circuits for the Baby JubJub curve are available. See docs/BABYJUB.md for details.
